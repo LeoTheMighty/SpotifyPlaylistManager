@@ -58,20 +58,27 @@ sp_user_library_modify = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLI
 def should_add_to_recommended(playlist_name):
     """Calculates whether the playlist should be added to the Recommended playlist.
 
+    Bases this off of the `ADD_TO_RECOMMENDED_PREFIXES` list, so any playlist whose name begins with any of the prefixes within the list will be added.
+
     Args:
         playlist_name (str): The name of the playlist
 
     Returns:
         bool: Whether the playlist should be added to the Recommended playlist.
     """
+
     for p in ADD_TO_RECOMMENDED_PREFIXES:
         if playlist_name.replace(IGNORE_CHARACTER, '').lower().startswith(p):
             return True
     return False
 
 def process_all_playlists(process_playlist):
-    """Hands over each playlist over to the given function
+    """Hands over each playlist for the current user over to the given function.
+
+    Args:
+        process_playlist ((Playlist) -> ()): The given function to process each playlist.
     """
+
     limit = 50
     offset = 0
     playlists = sp_playlist_modify.current_user_playlists()
@@ -83,39 +90,52 @@ def process_all_playlists(process_playlist):
         offset += len(items)
         playlists = sp_playlist_modify.current_user_playlists(limit=limit, offset=offset)
 
-def get_from_list_map(d, k):
-    """
-    """
-    if k not in d:
-        return []
-    return d[k]
-
 def add_to_list_map(d, k, v):
+    """Maintains a map of lists by initializing an empty list for a key when it is attempted to put into place.
+
+    Args:
+        d (dict): The dictionary to place the value into.
+        k (str): The string key where to put the value.
+        v (str): The individual value to place into the list for the key.
     """
-    """
+
     if k not in d.keys():
         d[k] = []
     d[k].append(v)
 
 def get_playlists_info():
     """Gets all the necessary playlist info for the user.
+
+    Returns:
+        1. playlist_names (dict): The map of playlist IDs to their names.
+        2. playlist_name_map (dict): The map of playlist names to the list of IDs that the name is associated with.
+        3. playlist_superlists (dict): The map of playlist IDs to the list of super-playlist IDs associated with the playlist that need to get updated.
     """
+
     playlist_names = {}
     playlist_name_map = {}
     playlist_superlists = {}
     add_to_recommended_playlist_names = []
 
     def add_superlist(sub_playlist_name, super_playlist_name):
-        """Add to
+        """Add a sublist/superlist association.
 
+        Args:
+            sub_playlist_name (str): The playlist name for the sub-playlist.
+            super_playlist_name (str): The playlist name for the super-playlist.
         """
-        for sub_playlist_id in get_from_list_map(playlist_name_map, sub_playlist_name):
-            for super_playlist_id in get_from_list_map(playlist_name_map, super_playlist_name):
+
+        for sub_playlist_id in playlist_name_map.get(sub_playlist_name, []):
+            for super_playlist_id in playlist_name_map.get( super_playlist_name, []):
                 add_to_list_map(playlist_superlists, sub_playlist_id, super_playlist_id)
 
     def handle_playlist(playlist):
+        """The function that will take in every single playlst for the user and populate the return values for the parent function.
+
+        Args:
+            playlist (dict): The dictionary returned from the Spotify API containing the information for a playlist.
         """
-        """
+
         playlist_id = playlist['id']
         playlist_name = playlist['name']
 
@@ -128,9 +148,7 @@ def get_playlists_info():
         personal_name = playlist_name + SUPERLIST_INDICATOR
         if personal_name in playlist_name_map:
             add_superlist(playlist_name, personal_name)
-            # print(name + " is the sublist (ayo) of " + personal_name)
         if playlist_name.endswith(SUPERLIST_INDICATOR):
-            # print(name + " is a personal list")
             real_name = playlist_name[:-len(SUPERLIST_INDICATOR)]
             if real_name in playlist_name_map:
                 add_superlist(real_name, playlist_name)
@@ -139,10 +157,6 @@ def get_playlists_info():
 
     for playlist_name in add_to_recommended_playlist_names:
         add_superlist(playlist_name, RECOMMENDED_PLAYLIST_NAME)
-
-    # playlists = { "id": "name" }
-    # playlist_name_map = { "name": ["ids", "with", "that", "name"] }
-    # playlist_superlists = { "sub_playlist_id": ["list", "of", "super_playlists", "to_update"] }
     return playlist_names, playlist_name_map, playlist_superlists
 
 def get_ids(get_tracks):
@@ -154,6 +168,7 @@ def get_ids(get_tracks):
     Returns:
         set(str): The list of ids representing the tracks from the function.
     """
+
     limit = 50
     offset = 0
     tracks = get_tracks(limit, offset)
@@ -169,20 +184,25 @@ def get_ids(get_tracks):
     return track_ids
 
 def get_liked_tracks():
-    """Get the list of ids
+    """Gets the set of track IDs that the current user has liked"""
 
-    """
     return get_ids(lambda limit, offset: sp_library_read.current_user_saved_tracks(limit=limit, offset=offset))
 
 def get_playlist_tracks(playlist_id):
-    """
-    """
+    """Gets the set of track IDs in the given playlist"""
+
     return get_ids(lambda limit, offset: sp_playlist_modify.playlist_items(playlist_id, limit=limit, offset=offset))
 
 def get_all_playlist_tracks(playlist_names):
+    """Gets the map for every single track in every single playlist that the current user owns.
+
+    Args:
+        playlist_names ({str: str}): Map of playlist IDs to their corresponding names.
+
+    Returns:
+        ({str: set(str)}): The map of playlist IDs to the set of track IDs associated with the track.
     """
-    id -> set(track_ids)
-    """
+
     print("[DEBUG] Getting the sets of playlist tracks:")
     print("[DEBUG]  ")
     playlist_tracks = {}
@@ -197,8 +217,12 @@ def get_all_playlist_tracks(playlist_names):
     return playlist_tracks
 
 def add_to_liked(track_ids):
+    """Add the set of track IDs to the current user's liked tracks.
+
+    Args:
+        track_ids (set(str)): The set of track IDs to add.
     """
-    """
+
     print("Adding " + str(get_track_names(track_ids)) + " (len = " + str(len(track_dis)) + ") to Liked")
     if len(track_ids) != 0:
         while len(track_ids) > MAX_ADD_ITEMS:
@@ -208,15 +232,24 @@ def add_to_liked(track_ids):
         sp_playlist_modify.current_user_saved_tracks_add(add_tracks)
 
 def get_track(track_id):
+    """Get the info for the track from the given ID.
+
+    Returns:
+        (dict): The info returned by the Spotify API for the track.
+    """
+
     return sp_playlist_modify.track(track_id)
 
 def pretend_its_an_offsetted_api_call_i_guess(track_ids, limit, offset):
+    """Transform the Spotify `tracks` API call to appear to be like one that utilizes offset and limit logic, like the other queries."""
     track_ids = track_ids[offset:offset+limit]
     if len(track_ids) == 0:
         return []
     return sp_playlist_modify.tracks(track_ids)
 
 def get_artists_string(artists):
+    """Get the string corresponding to the artists object from Spotify"""
+
     # prolly could do this functionally but whatever
     s = ""
     first = True
@@ -229,8 +262,8 @@ def get_artists_string(artists):
     return s
 
 def get_track_names(track_ids):
-    """
-    """
+    """Get full list of track names from the given track IDs"""
+
     limit = 50
     offset = 0
     total = len(track_ids)
@@ -254,14 +287,21 @@ def get_missing_tracks(sub_playlist_tracks, super_playlist_tracks):
     Returns:
         set[str]: The set of track ids missing from the super playlist.
     """
+
     return sub_playlist_tracks - super_playlist_tracks
 
 def get_playlists_to_update(playlist_superlists, playlist_tracks, playlist_names):
-    """
+    """Get the tracks to add to each playlist from what's missing.
+
+    Args:
+        playlist_superlists ({str: [str]}): The map of playlist IDs to the list of their corresponding super-playlists to potentially update.
+        playlist_tracks ({str: set(str)}): The map of playlist ID to the IDs of the tracks within them.
+        playlist_names ({str: str}): The map of playlist IDs to their names.
 
     Returns:
-        dict[str, set(str)]: Map of playlist ID to the set of track ids to add.
+        {str: set(str)}: Map of playlist ID to the set of track ids to add.
     """
+
     print("[DEBUG] Getting the playlists to update:")
     print("[DEBUG]  ")
     playlists_to_update = {}
@@ -285,8 +325,17 @@ def get_playlists_to_update(playlist_superlists, playlist_tracks, playlist_names
     return playlists_to_update
 
 def get_missing_liked_tracks(liked_tracks, playlist_names, playlist_tracks):
+    """Get all the track IDs missing from the current user's liked tracks.
+
+    Args:
+        liked_tracks (set(str)): The set of track IDs the current user has liked.
+        playlist_names ({str: str}): The map of playlist IDs to their names.
+        playlist_tracks ({str: set(str)}): The map of playlist ID to the IDs of the tracks within them.
+
+    Returns:
+        (set(str)): The set of missing track IDs from the current user's liked songs.
     """
-    """
+
     total_missing_tracks = set()
     for playlist_id, track_ids in playlist_tracks.items():
         missing_tracks = get_missing_tracks(track_ids, liked_tracks)
@@ -295,24 +344,38 @@ def get_missing_liked_tracks(liked_tracks, playlist_names, playlist_tracks):
     return total_missing_tracks
 
 def update_liked_songs(track_ids):
+    """Updates the current user's liked songs by adding the given track IDs.
+
+    Args:
+        track_ids (set(str)): The track IDs to add to the current user's liked songs.
     """
-    """
+
     while len(track_ids) > 0:
         add_tracks = track_ids[:MAX_ADD_LIBRARY_ITEMS]
         sp_user_library_modify.current_user_saved_tracks_add(add_tracks)
         track_ids = track_ids[MAX_ADD_LIBRARY_ITEMS:]
 
 def update_playlist(playlist_id, track_ids):
+    """Update a playlist by adding the given track IDs.
+
+    Args:
+        playlist_id (str): The ID of the playlist to add the tracks to.
+        track_ids (set(str)): The set of track IDs to add to the playlist.
     """
-    """
+
     while len(track_ids) > 0:
         add_tracks = track_ids[:MAX_ADD_ITEMS]
         sp_playlist_modify.playlist_add_items(playlist_id, add_tracks)
         track_ids = track_ids[MAX_ADD_ITEMS:]
 
 def update_playlists(playlists_to_update, missing_liked_tracks):
+    """Update all of the playlist with their missing tracks.
+
+    Args:
+        playlists_to_update ({str: set(str)}): The map of playlist IDs to the track IDs to update them with.
+        missing_liked_tracks (set(str)): The set of track IDs missing from the current user's liked songs.
     """
-    """
+
     num_updated = 0
     for playlist, track_ids in playlists_to_update.items():
         update_playlist(playlist, list(track_ids))
@@ -322,8 +385,8 @@ def update_playlists(playlists_to_update, missing_liked_tracks):
     return num_updated
 
 def print_accomplish_plan():
-    """
-    """
+    """Print the overall plan we want to do. High-level, doesn't look into the current user's details yet, just at the configuration of the script."""
+
     print("================================")
     print("What this script will do:")
     print()
@@ -337,8 +400,8 @@ def print_accomplish_plan():
     print()
 
 def print_playlist_plan(playlist_names, playlist_name_map, playlist_superlists):
-    """Print the plan that we want to do to update the library.
-    """
+    """Print the plan that we want to do to update the library, with specifically which playlists we will update from which other playlists"""
+
     print("================================")
     print("Playlist update plan:")
     print()
@@ -354,8 +417,8 @@ def print_playlist_plan(playlist_names, playlist_name_map, playlist_superlists):
     print()
 
 def print_detailed_track_plan(playlists_to_update, missing_liked_tracks, playlist_names):
-    """
-    """
+    """Print the exact plan of which tracks will get added to which playlists"""
+
     print("================================")
     print("What will get updated:")
     print()
@@ -370,6 +433,8 @@ def print_detailed_track_plan(playlists_to_update, missing_liked_tracks, playlis
     print()
 
 def main():
+    """Go through the process of taking user input and telling them exactly what will happen, as well as stopping and letting them check before we actually update anything"""
+
     print_accomplish_plan()
 
     playlist_names, playlist_name_map, playlist_superlists = get_playlists_info()
@@ -414,28 +479,5 @@ def test():
 
 if __name__ == "__main__":
     main()
-
-"""
-if __name__ == "__main__":
-    # user = sp_library_read.user('leothemighty123')
-    saved_tracks = sp_library_read.current_user_saved_tracks()
-
-    sublist_map, playlist_name_map = get_sublist_maps()
-    # print(sublist_map)
-
-    liked_set = set()
-
-    # 2. Add all playlist items to
-    for k, v in playlist_name_map.items():
-        print("Adding \"" + k + "\"'s tracks to Liked")
-
-
-    # 1. Add the regular playlist items to the (personal) playlists
-    for k, v in sublist_map.items():
-        # update_playlist_from_sub(playlist_name_map[k], playlist_name_map[v])
-        # print(k + " is the sublist of " + v)
-        print("UPDATING playlist [" + v + "] to have the tracks from sub_playlist [" + k + "]")
-        update_playlist_from_sub(playlist_name_map[k], playlist_name_map[v])
-"""
 
 

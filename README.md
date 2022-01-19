@@ -14,3 +14,6 @@ I'm thinking of having a chain of updates, so for instance there will be playlis
 Let's start with an "update" function that goes through and makes sure that all of the tracks on my Liked Songs are in both Cursed Combination and My Recommended Songs.
 
 Additionally it should make sure that playlists that have " (personal)" after it and have a corresponding playlist, have all of the songs that the corresponding playlist has. The regular playlist should be a subset.
+
+1. Adds all the regular playlist songs to their corresponding super playlist.
+1. Adds every single playlist track to the liked playlist
