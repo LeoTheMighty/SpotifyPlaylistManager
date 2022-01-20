@@ -33,6 +33,9 @@ UPDATE_WITH_LIKED = ['Cursed Combination']
 # Init the spotify helper
 sp = SpotifyHelper()
 
+# Init the logger
+logger = Log(True)
+
 def should_add_to_recommended(playlist_name):
     """Calculates whether the playlist should be added to the Recommended playlist.
 
@@ -186,17 +189,17 @@ def get_all_playlist_tracks(playlist_names):
         ({str: set(str)}): The map of playlist IDs to the set of track IDs associated with the track.
     """
 
-    print("[DEBUG] Getting the sets of playlist tracks:")
-    print("[DEBUG]  ")
+    logger.debug("Getting the sets of playlist tracks:")
+    logger.debug("")
     playlist_tracks = {}
     for playlist_id, playlist_name in playlist_names.items():
         tracks = get_playlist_tracks(playlist_id)
-        print("[DEBUG]  \"{}\" has {} tracks".format(playlist_name, len(tracks)))
+        logger.debug("\"{}\" has {} tracks".format(playlist_name, len(tracks)))
         playlist_tracks[playlist_id] = tracks
 
-    print("[DEBUG]  =====================================")
-    print("[DEBUG]  Calculated for {} playlists".format(len(playlist_tracks.keys())))
-    print("[DEBUG]  =====================================")
+    logger.debug("=" * 20)
+    logger.debug("Calculated for {} playlists".format(len(playlist_tracks.keys())))
+    logger.debug("=" * 20)
     return playlist_tracks
 
 # TODO DELETE
@@ -290,8 +293,8 @@ def get_playlists_to_update(playlist_superlists, playlist_tracks, playlist_names
         {str: set(str)}: Map of playlist ID to the set of track ids to add.
     """
 
-    print("[DEBUG] Getting the playlists to update:")
-    print("[DEBUG]  ")
+    logger.debug("Getting the playlists to update:")
+    logger.debug("")
     playlists_to_update = {}
     for sublist, superlists in playlist_superlists.items():
         for superlist in superlists:
@@ -301,14 +304,14 @@ def get_playlists_to_update(playlist_superlists, playlist_tracks, playlist_names
 
             # Ensure that we don't have any empty updates in the map at all
             if len(missing_tracks) != 0:
-                print("[DEBUG]  \"{}\" is missing {} tracks FROM sublist \"{}\"".format(playlist_names[superlist], len(missing_tracks), playlist_names[sublist]))
+                print("\"{}\" is missing {} tracks FROM sublist \"{}\"".format(playlist_names[superlist], len(missing_tracks), playlist_names[sublist]))
                 if superlist not in playlists_to_update:
                     playlists_to_update[superlist] = set()
                 playlists_to_update[superlist].update(missing_tracks)
 
-    print("[DEBUG]  =====================================")
-    print("[DEBUG]  There are {} playlists to update".format(len(playlists_to_update.keys())))
-    print("[DEBUG]  =====================================")
+    logger.debug("=" * 20)
+    logger.debug("There are {} playlists to update".format(len(playlists_to_update.keys())))
+    logger.debug("=" * 20)
 
     return playlists_to_update
 
@@ -433,8 +436,8 @@ def main():
 
     liked_tracks = sp.get_liked_tracks()
 
-    print("[DEBUG] You have {} Liked Songs".format(len(liked_tracks)))
-    print("[DEBUG]  ")
+    logger.debug("You have {} Liked Songs".format(len(liked_tracks)))
+    logger.debug("")
 
     playlist_tracks = get_all_playlist_tracks(playlist_names)
 
