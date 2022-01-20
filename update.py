@@ -1,6 +1,5 @@
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-from spotify_secrets import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI
+from spotify_helper import SpotifyHelper
+from log import Log
 
 """
 1. Adds all the regular playlist ids to the (personal) corresponding playlist
@@ -31,29 +30,8 @@ RECOMMENDED_ARCHIVE_PLAYLIST_NAME = 'My Archived Recommended Songs'
 # All the songs in my liked should be in these playlists (usually shared playlists)
 UPDATE_WITH_LIKED = ['Cursed Combination']
 
-# dictated by Spotify's API
-MAX_ADD_ITEMS = 100
-
-# different for saving songs for some reason?
-MAX_ADD_LIBRARY_ITEMS = 50
-
-READ_SCOPE = "user-library-read"
-sp_library_read = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
-                                               client_secret=CLIENT_SECRET,
-                                               redirect_uri=REDIRECT_URI,
-                                               scope=READ_SCOPE))
-
-MODIFY_PLAYLIST_SCOPE = "playlist-modify-public"
-sp_playlist_modify = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
-                                               client_secret=CLIENT_SECRET,
-                                               redirect_uri=REDIRECT_URI,
-                                               scope=MODIFY_PLAYLIST_SCOPE))
-
-MODIFY_USER_LIBRARY_SCOPE = 'user-library-modify'
-sp_user_library_modify = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
-                                                       client_secret=CLIENT_SECRET,
-                                                       redirect_uri=REDIRECT_URI,
-                                                       scope=MODIFY_USER_LIBRARY_SCOPE))
+# Init the spotify helper
+sp = SpotifyHelper()
 
 def should_add_to_recommended(playlist_name):
     """Calculates whether the playlist should be added to the Recommended playlist.
@@ -72,6 +50,7 @@ def should_add_to_recommended(playlist_name):
             return True
     return False
 
+# TODO DELETE
 def process_all_playlists(process_playlist):
     """Hands over each playlist for the current user over to the given function.
 
@@ -153,12 +132,13 @@ def get_playlists_info():
             if real_name in playlist_name_map:
                 add_superlist(real_name, playlist_name)
 
-    process_all_playlists(handle_playlist)
+    sp.handle_all_playlists(handle_playlist)
 
     for playlist_name in add_to_recommended_playlist_names:
         add_superlist(playlist_name, RECOMMENDED_PLAYLIST_NAME)
     return playlist_names, playlist_name_map, playlist_superlists
 
+# TODO DELETE
 def get_ids(get_tracks):
     """Gets the track ids from a playlist given a function that grabs the track objects.
 
@@ -183,16 +163,19 @@ def get_ids(get_tracks):
         tracks = get_tracks(limit, offset)
     return track_ids
 
+# TODO DELETE
 def get_liked_tracks():
     """Gets the set of track IDs that the current user has liked"""
 
     return get_ids(lambda limit, offset: sp_library_read.current_user_saved_tracks(limit=limit, offset=offset))
 
+# TODO DELETE
 def get_playlist_tracks(playlist_id):
     """Gets the set of track IDs in the given playlist"""
 
     return get_ids(lambda limit, offset: sp_playlist_modify.playlist_items(playlist_id, limit=limit, offset=offset))
 
+# TODO DELETE
 def get_all_playlist_tracks(playlist_names):
     """Gets the map for every single track in every single playlist that the current user owns.
 
@@ -216,6 +199,7 @@ def get_all_playlist_tracks(playlist_names):
     print("[DEBUG]  =====================================")
     return playlist_tracks
 
+# TODO DELETE
 def add_to_liked(track_ids):
     """Add the set of track IDs to the current user's liked tracks.
 
@@ -231,6 +215,7 @@ def add_to_liked(track_ids):
             sp_playlist_modify.current_user_saved_tracks_add(add_tracks)
         sp_playlist_modify.current_user_saved_tracks_add(add_tracks)
 
+# TODO DELETE
 def get_track(track_id):
     """Get the info for the track from the given ID.
 
@@ -240,6 +225,7 @@ def get_track(track_id):
 
     return sp_playlist_modify.track(track_id)
 
+# TODO DELETE
 def pretend_its_an_offsetted_api_call_i_guess(track_ids, limit, offset):
     """Transform the Spotify `tracks` API call to appear to be like one that utilizes offset and limit logic, like the other queries."""
     track_ids = track_ids[offset:offset+limit]
@@ -247,6 +233,7 @@ def pretend_its_an_offsetted_api_call_i_guess(track_ids, limit, offset):
         return []
     return sp_playlist_modify.tracks(track_ids)
 
+# TODO DELETE
 def get_artists_string(artists):
     """Get the string corresponding to the artists object from Spotify"""
 
@@ -261,6 +248,7 @@ def get_artists_string(artists):
             first = False
     return s
 
+# TODO DELETE
 def get_track_names(track_ids):
     """Get full list of track names from the given track IDs"""
 
@@ -343,6 +331,7 @@ def get_missing_liked_tracks(liked_tracks, playlist_names, playlist_tracks):
             total_missing_tracks.update(missing_tracks)
     return total_missing_tracks
 
+# TODO DELETE
 def update_liked_songs(track_ids):
     """Updates the current user's liked songs by adding the given track IDs.
 
@@ -355,6 +344,7 @@ def update_liked_songs(track_ids):
         sp_user_library_modify.current_user_saved_tracks_add(add_tracks)
         track_ids = track_ids[MAX_ADD_LIBRARY_ITEMS:]
 
+# TODO DELETE
 def update_playlist(playlist_id, track_ids):
     """Update a playlist by adding the given track IDs.
 
@@ -378,9 +368,9 @@ def update_playlists(playlists_to_update, missing_liked_tracks):
 
     num_updated = 0
     for playlist, track_ids in playlists_to_update.items():
-        update_playlist(playlist, list(track_ids))
+        sp.update_playlist(playlist, list(track_ids))
         num_updated += len(track_ids)
-    update_liked_songs(list(missing_liked_tracks))
+    sp.update_liked_songs(list(missing_liked_tracks))
     num_updated += len(missing_liked_tracks)
     return num_updated
 
@@ -441,7 +431,7 @@ def main():
 
     # print_playlist_plan(playlist_names, playlist_name_map, playlist_superlists)
 
-    liked_tracks = get_liked_tracks()
+    liked_tracks = sp.get_liked_tracks()
 
     print("[DEBUG] You have {} Liked Songs".format(len(liked_tracks)))
     print("[DEBUG]  ")
