@@ -19,15 +19,12 @@ ARCHIVE_INDICATOR = ' (archived)'
 # that's irrelevant for this script so we'll just remove them all.
 IGNORE_CHARACTER = '*'
 
-# I'll ignore case when calculating these anyways
-ADD_TO_RECOMMENDED_PREFIXES = ['we']
-
 # TODO
 RECOMMENDED_ARCHIVE_PLAYLIST_NAME = 'My Archived Recommended Songs'
 
 PREFIX_UPDATE_MAP = {
     "we": ['My Recommended Songs'],
-    "my recommended songs": [LIKED_NAME],
+    "": [LIKED_NAME],
     LIKED_ID: ["Cursed combination"],
 }
 
@@ -41,23 +38,6 @@ def matches_prefix(name, prefix):
     """Determines whether the name matches the given prefix"""
 
     return name.replace(IGNORE_CHARACTER, '').lower().startswith(prefix)
-
-def should_add_to_recommended(playlist_name):
-    """Calculates whether the playlist should be added to the Recommended playlist.
-
-    Bases this off of the `ADD_TO_RECOMMENDED_PREFIXES` list, so any playlist whose name begins with any of the prefixes within the list will be added.
-
-    Args:
-        playlist_name (str): The name of the playlist
-
-    Returns:
-        bool: Whether the playlist should be added to the Recommended playlist.
-    """
-
-    for p in ADD_TO_RECOMMENDED_PREFIXES:
-        if matches_prefix(playlist_name, p):
-            return True
-    return False
 
 def add_to_list_map(d, k, v):
     """Maintains a map of lists by initializing an empty list for a key when it is attempted to put into place.
@@ -85,7 +65,6 @@ def get_playlists_info():
     playlist_names = { LIKED_ID: LIKED_NAME }
     playlist_name_map = { LIKED_NAME: [LIKED_ID] }
     playlist_superlists = {}
-    add_to_recommended_playlist_names = []
 
     # Map of to-update playlist name to list of names
     prefix_update_names = {}
@@ -112,10 +91,6 @@ def get_playlists_info():
         playlist_id = playlist['id']
         playlist_name = playlist['name']
 
-        # Usurped by the PREFIX_UPDATE_MAP logic >>>>
-        # if should_add_to_recommended(playlist_name):
-            # add_to_recommended_playlist_names.append(playlist_name)
-
         for prefix, names in PREFIX_UPDATE_MAP.items():
             if matches_prefix(playlist_name, prefix):
                 prefix_update_names[playlist_name] = names
@@ -132,10 +107,6 @@ def get_playlists_info():
                 add_superlist(real_name, playlist_name)
 
     sp.handle_all_playlists(handle_playlist)
-
-    # usurped babayyyyyy >>>>>>
-    # for playlist_name in add_to_recommended_playlist_names:
-        # add_superlist(playlist_name, RECOMMENDED_PLAYLIST_NAME)
 
     for sub_playlist_name, names in prefix_update_names.items():
         for playlist_name in names:
@@ -213,39 +184,17 @@ def get_playlists_to_update(playlist_superlists, playlist_tracks, playlist_names
 
     return playlists_to_update
 
-def get_missing_liked_tracks(liked_tracks, playlist_names, playlist_tracks):
-    """Get all the track IDs missing from the current user's liked tracks.
-
-    Args:
-        liked_tracks (set(str)): The set of track IDs the current user has liked.
-        playlist_names ({str: str}): The map of playlist IDs to their names.
-        playlist_tracks ({str: set(str)}): The map of playlist ID to the IDs of the tracks within them.
-
-    Returns:
-        (set(str)): The set of missing track IDs from the current user's liked songs.
-    """
-
-    total_missing_tracks = set()
-    for playlist_id, track_ids in playlist_tracks.items():
-        missing_tracks = get_missing_tracks(track_ids, liked_tracks)
-        if len(missing_tracks) != 0:
-            total_missing_tracks.update(missing_tracks)
-    return total_missing_tracks
-
-def update_playlists(playlists_to_update, missing_liked_tracks):
+def update_playlists(playlists_to_update):
     """Update all of the playlist with their missing tracks.
 
     Args:
         playlists_to_update ({str: set(str)}): The map of playlist IDs to the track IDs to update them with.
-        missing_liked_tracks (set(str)): The set of track IDs missing from the current user's liked songs.
     """
 
     num_updated = 0
     for playlist, track_ids in playlists_to_update.items():
         sp.update_playlist(playlist, list(track_ids))
         num_updated += len(track_ids)
-    # sp.update_liked_songs(list(missing_liked_tracks))
-    # num_updated += len(missing_liked_tracks)
     return num_updated
 
 def print_accomplish_plan():
@@ -272,15 +221,9 @@ def print_playlist_plan(playlist_names, playlist_name_map, playlist_superlists):
     for sublist, superlists in playlist_superlists.items():
         for superlist in superlists:
             print("{} -> {}".format(playlist_names[sublist], playlist_names[superlist]))
-    # for k, v in playlist_name_map.items():
-        # if len(v) == 1:
-            # print("{} -> Liked".format(k))
-        # else:
-            # for i in v:
-                # print("{} (id: {}) -> Liked".format(k, i))
     print()
 
-def print_detailed_track_plan(playlists_to_update, missing_liked_tracks, playlist_names):
+def print_detailed_track_plan(playlists_to_update, playlist_names):
     """Print the exact plan of which tracks will get added to which playlists"""
 
     print("================================")
@@ -291,10 +234,6 @@ def print_detailed_track_plan(playlists_to_update, missing_liked_tracks, playlis
         for i, track_name in enumerate(get_track_names(tracks)):
             print("    {}. {}".format(i, track_name))
         print()
-    # print("~Liked Songs~ (to add {} tracks):".format(len(missing_liked_tracks)))
-    # for i, track_name in enumerate(get_track_names(missing_liked_tracks)):
-        # print("    {}. {}".format(i, track_name))
-    # print()
 
 def main():
     """Go through the process of taking user input and telling them exactly what will happen, as well as stopping and letting them check before we actually update anything"""
@@ -303,19 +242,11 @@ def main():
 
     playlist_names, playlist_name_map, playlist_superlists = get_playlists_info()
 
-    # print_playlist_plan(playlist_names, playlist_name_map, playlist_superlists)
-
-    # liked_tracks = sp.get_liked_tracks()
-
-    # logger.debug("You have {} Liked Songs".format(len(liked_tracks)))
-    # logger.debug("")
-
     playlist_tracks = get_all_playlist_tracks(playlist_names)
 
-    # missing_liked_tracks = get_missing_liked_tracks(liked_tracks, playlist_names, playlist_tracks)
     playlists_to_update = get_playlists_to_update(playlist_superlists, playlist_tracks, playlist_names)
 
-    print_detailed_track_plan(playlists_to_update, missing_liked_tracks, playlist_names)
+    print_detailed_track_plan(playlists_to_update, playlist_names)
 
     print()
     print("Look at the track update plan and make sure it's what you want!!")
@@ -326,9 +257,8 @@ def main():
         print("Aborting...")
         return
 
-    # print("haha jk it's not implemented yet")
+    num_updated = update_playlists(playlists_to_update)
 
-    num_updated = update_playlists(playlists_to_update, missing_liked_tracks)
     print("Successfully added {} tracks to different playlists in your library!".format(num_updated))
 
 if __name__ == "__main__":
