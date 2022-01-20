@@ -2,6 +2,10 @@ import spotipy
 from spotify.oauth2 import SpotifyOAuth
 from secrets import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI
 
+# Personal Designation for Liked Songs
+LIKED_ID = None
+LIKED_NAME = 'Liked Songs'
+
 # Dictated by Spotify's API
 MAX_ADD_ITEMS = 100
 MAX_ADD_LIBRARY_ITEMS = 50
@@ -64,7 +68,6 @@ class SpotifyHelper:
 
     # Specific Spotify API actions
     # ============================
-    # TODO: Elegant way to combine duplicate logic from these two functions?
     def get_playlist_tracks(playlist_id):
         track_ids = set()
 
@@ -73,28 +76,23 @@ class SpotifyHelper:
             if track['track']['id'] is not None:
                 track_ids.add(track['track']['id'])
 
-        handle_playlist_tracks(playlist_id, handle_track)
-        return track_ids
+        # TODO does this work?
+        handle_track = lambda track: track_ids.add(track['track']['id']) if track['track']['id'] is not None
 
-    def get_liked_tracks():
-        track_ids = set()
-
-        # TODO: can you do a `lambda` with an `if`?
-        def handle_track(track):
-            if track['track']['id'] is not None:
-                track_ids.add(track['track']['id'])
-
-        handle_liked_tracks(handle_track)
+        if playlist_id is LIKED:
+            handle_liked_tracks(handle_track)
+        else:
+            handle_playlist_tracks(playlist_id, handle_track)
         return track_ids
 
     def get_track(track_id):
         self.sp_pl_modify(track_id)
 
     def update_playlist(playlist_id, track_ids):
-        handle_batch(track_ids, lambda batch: self.sp_pl_modify(playlist_id, batch), MAX_ADD_ITEMS)
-
-    def update_liked_songs(track_ids):
-        handle_batch(track_ids, lambda batch: self.sp_lib_modify.current_user_saved_tracks_add(batch), MAX_ADD_LIBRARY_ITEMS)
+        if playlist_id is LIKED:
+            handle_batch(track_ids, lambda batch: self.sp_lib_modify.current_user_saved_tracks_add(batch), MAX_ADD_LIBRARY_ITEMS)
+        else:
+            handle_batch(track_ids, lambda batch: self.sp_pl_modify(playlist_id, batch), MAX_ADD_ITEMS)
 
     def get_track_names(track_ids):
         track_names = []
