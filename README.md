@@ -17,3 +17,9 @@ Additionally it should make sure that playlists that have " (personal)" after it
 
 1. Adds all the regular playlist songs to their corresponding super playlist.
 1. Adds every single playlist track to the liked playlist
+
+## Configuration
+
+First of all, to make this work at all you need to run `cp secrets.py.tmp secrets.py` and fill out the information in the file.
+
+TODO: probably not how it should go, i think i need to check in the secrets for anyone to use it. Whatever, I'll figure it out once i get off this bitchin flight, my ears hurt and i don't have wifi :(
