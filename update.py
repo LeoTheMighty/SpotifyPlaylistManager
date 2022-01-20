@@ -53,25 +53,6 @@ def should_add_to_recommended(playlist_name):
             return True
     return False
 
-# TODO DELETE
-def process_all_playlists(process_playlist):
-    """Hands over each playlist for the current user over to the given function.
-
-    Args:
-        process_playlist ((Playlist) -> ()): The given function to process each playlist.
-    """
-
-    limit = 50
-    offset = 0
-    playlists = sp_playlist_modify.current_user_playlists()
-    total = playlists['total']
-    while offset != total:
-        items = playlists['items']
-        for playlist in items:
-            process_playlist(playlist)
-        offset += len(items)
-        playlists = sp_playlist_modify.current_user_playlists(limit=limit, offset=offset)
-
 def add_to_list_map(d, k, v):
     """Maintains a map of lists by initializing an empty list for a key when it is attempted to put into place.
 
@@ -141,44 +122,6 @@ def get_playlists_info():
         add_superlist(playlist_name, RECOMMENDED_PLAYLIST_NAME)
     return playlist_names, playlist_name_map, playlist_superlists
 
-# TODO DELETE
-def get_ids(get_tracks):
-    """Gets the track ids from a playlist given a function that grabs the track objects.
-
-    Args:
-        get_tracks ((limit, offset) -> [Track]): Function to get tracks given a limit and offset.
-
-    Returns:
-        set(str): The list of ids representing the tracks from the function.
-    """
-
-    limit = 50
-    offset = 0
-    tracks = get_tracks(limit, offset)
-    total = tracks['total']
-    track_ids = set()
-    while offset != total:
-        for track in tracks['items']:
-            # These are local files in my playlists, we don't want to process them
-            if track['track']['id'] is not None:
-                track_ids.add(track['track']['id'])
-        offset += len(tracks['items'])
-        tracks = get_tracks(limit, offset)
-    return track_ids
-
-# TODO DELETE
-def get_liked_tracks():
-    """Gets the set of track IDs that the current user has liked"""
-
-    return get_ids(lambda limit, offset: sp_library_read.current_user_saved_tracks(limit=limit, offset=offset))
-
-# TODO DELETE
-def get_playlist_tracks(playlist_id):
-    """Gets the set of track IDs in the given playlist"""
-
-    return get_ids(lambda limit, offset: sp_playlist_modify.playlist_items(playlist_id, limit=limit, offset=offset))
-
-# TODO DELETE
 def get_all_playlist_tracks(playlist_names):
     """Gets the map for every single track in every single playlist that the current user owns.
 
@@ -201,72 +144,6 @@ def get_all_playlist_tracks(playlist_names):
     logger.debug("Calculated for {} playlists".format(len(playlist_tracks.keys())))
     logger.debug("=" * 20)
     return playlist_tracks
-
-# TODO DELETE
-def add_to_liked(track_ids):
-    """Add the set of track IDs to the current user's liked tracks.
-
-    Args:
-        track_ids (set(str)): The set of track IDs to add.
-    """
-
-    print("Adding " + str(get_track_names(track_ids)) + " (len = " + str(len(track_dis)) + ") to Liked")
-    if len(track_ids) != 0:
-        while len(track_ids) > MAX_ADD_ITEMS:
-            add_tracks = track_ids[0:MAX_ADD_ITEMS]
-            track_ids = track_ids[MAX_ADD_ITEMS:]
-            sp_playlist_modify.current_user_saved_tracks_add(add_tracks)
-        sp_playlist_modify.current_user_saved_tracks_add(add_tracks)
-
-# TODO DELETE
-def get_track(track_id):
-    """Get the info for the track from the given ID.
-
-    Returns:
-        (dict): The info returned by the Spotify API for the track.
-    """
-
-    return sp_playlist_modify.track(track_id)
-
-# TODO DELETE
-def pretend_its_an_offsetted_api_call_i_guess(track_ids, limit, offset):
-    """Transform the Spotify `tracks` API call to appear to be like one that utilizes offset and limit logic, like the other queries."""
-    track_ids = track_ids[offset:offset+limit]
-    if len(track_ids) == 0:
-        return []
-    return sp_playlist_modify.tracks(track_ids)
-
-# TODO DELETE
-def get_artists_string(artists):
-    """Get the string corresponding to the artists object from Spotify"""
-
-    # prolly could do this functionally but whatever
-    s = ""
-    first = True
-    for artist in artists:
-        if not first:
-            s += ", {}".format(artist['name'])
-        else:
-            s += artist['name']
-            first = False
-    return s
-
-# TODO DELETE
-def get_track_names(track_ids):
-    """Get full list of track names from the given track IDs"""
-
-    limit = 50
-    offset = 0
-    total = len(track_ids)
-    track_ids = list(track_ids)
-    tracks = pretend_its_an_offsetted_api_call_i_guess(track_ids, limit, offset)
-    track_names = []
-    while offset != total:
-        for track in tracks['tracks']:
-            track_names.append("\"{}\" by {}".format(track['name'], get_artists_string(track['artists'])))
-        offset += len(tracks['tracks'])
-        tracks = pretend_its_an_offsetted_api_call_i_guess(track_ids, limit, offset)
-    return track_names
 
 def get_missing_tracks(sub_playlist_tracks, super_playlist_tracks):
     """Get the tracks that need to get added to the super playlist. Simple Set subtraction.
@@ -333,33 +210,6 @@ def get_missing_liked_tracks(liked_tracks, playlist_names, playlist_tracks):
         if len(missing_tracks) != 0:
             total_missing_tracks.update(missing_tracks)
     return total_missing_tracks
-
-# TODO DELETE
-def update_liked_songs(track_ids):
-    """Updates the current user's liked songs by adding the given track IDs.
-
-    Args:
-        track_ids (set(str)): The track IDs to add to the current user's liked songs.
-    """
-
-    while len(track_ids) > 0:
-        add_tracks = track_ids[:MAX_ADD_LIBRARY_ITEMS]
-        sp_user_library_modify.current_user_saved_tracks_add(add_tracks)
-        track_ids = track_ids[MAX_ADD_LIBRARY_ITEMS:]
-
-# TODO DELETE
-def update_playlist(playlist_id, track_ids):
-    """Update a playlist by adding the given track IDs.
-
-    Args:
-        playlist_id (str): The ID of the playlist to add the tracks to.
-        track_ids (set(str)): The set of track IDs to add to the playlist.
-    """
-
-    while len(track_ids) > 0:
-        add_tracks = track_ids[:MAX_ADD_ITEMS]
-        sp_playlist_modify.playlist_add_items(playlist_id, add_tracks)
-        track_ids = track_ids[MAX_ADD_ITEMS:]
 
 def update_playlists(playlists_to_update, missing_liked_tracks):
     """Update all of the playlist with their missing tracks.
@@ -459,16 +309,6 @@ def main():
 
     num_updated = update_playlists(playlists_to_update, missing_liked_tracks)
     print("Successfully added {} tracks to different playlists in your library!".format(num_updated))
-
-def test():
-    liked_tracks = get_liked_tracks()
-    print(len(liked_tracks))
-    print(len(get_track_names(liked_tracks)))
-
-    # playlist_names, playlist_name_map, playlist_superlists = get_playlists_info()
-
-    # print_plan(playlist_names, playlist_name_map, playlist_superlists)
-
 
 if __name__ == "__main__":
     main()
