@@ -1,5 +1,4 @@
 import spotipy
-from spotify.oauth2 import SpotifyOAuth
 from secrets import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI
 
 # Personal Designation for Liked Songs
@@ -57,6 +56,20 @@ def batch_handle(items, handle_batch, limit):
         handle_batch(batch)
         items = items[limit:]
 
+# Helper methods
+# ============================
+def get_artists_string(artists):
+    # TODO: Do this functionally better with foldr or smth
+    s = ""
+    first = True
+    for artist in artists:
+        if not first:
+            s += ", {}".format(artist['name'])
+        else:
+            s += artist['name']
+            first = False
+    return s
+
 class SpotifyHelper:
     """Helper class to handle all the logic to interact with the Spotify API"""
 
@@ -68,7 +81,7 @@ class SpotifyHelper:
 
     # Specific Spotify API actions
     # ============================
-    def get_playlist_tracks(playlist_id):
+    def get_playlist_tracks(self, playlist_id):
         track_ids = set()
 
         # TODO: can you do a `lambda` with an `if`?
@@ -77,59 +90,45 @@ class SpotifyHelper:
                 track_ids.add(track['track']['id'])
 
         # TODO does this work?
-        handle_track = lambda track: track_ids.add(track['track']['id']) if track['track']['id'] is not None
+        handle_track = lambda track: track_ids.add(track['track']['id']) if track['track']['id'] is not None else None
 
-        if playlist_id is LIKED:
-            handle_liked_tracks(handle_track)
+        if playlist_id is LIKED_ID:
+            self.handle_liked_tracks(handle_track)
         else:
-            handle_playlist_tracks(playlist_id, handle_track)
+            self.handle_playlist_tracks(playlist_id, handle_track)
         return track_ids
 
-    def get_track(track_id):
+    def get_track(self, track_id):
         self.sp_pl_modify(track_id)
 
-    def update_playlist(playlist_id, track_ids):
-        if playlist_id is LIKED:
-            handle_batch(track_ids, lambda batch: self.sp_lib_modify.current_user_saved_tracks_add(batch), MAX_ADD_LIBRARY_ITEMS)
+    def update_playlist(self, playlist_id, track_ids):
+        if playlist_id is LIKED_ID:
+            batch_handle(track_ids, lambda batch: self.sp_lib_modify.current_user_saved_tracks_add(batch), MAX_ADD_LIBRARY_ITEMS)
         else:
-            handle_batch(track_ids, lambda batch: self.sp_pl_modify(playlist_id, batch), MAX_ADD_ITEMS)
+            batch_handle(track_ids, lambda batch: self.sp_pl_modify(playlist_id, batch), MAX_ADD_ITEMS)
 
-    def get_track_names(track_ids):
+    def get_track_names(self, track_ids):
         track_names = []
 
-        def batch_handle(batch):
+        def handle_batch(batch):
             for track in batch['tracks']:
                 track_names.append("\"{}\" by {}".format(track['name'], SpotifyHelper.get_artists_string(track['artists'])))
 
-        handle_batch(track_ids, batch_handle, MAX_READ_ITEMS)
+        batch_handle(track_ids, handle_batch, MAX_READ_ITEMS)
 
         return track_names
 
     # Special handle methods
     # ============================
-    def handle_all_playlists(handle_playlist):
+    def handle_all_playlists(self, handle_playlist):
         handle_all_from_pagination(handle_playlist, lambda offset, limit: self.sp_pl_modify.current_user_playlists(limit=limit, offset=offset), MAX_READ_ITEMS)
 
-    def handle_playlist_tracks(playlist_id, handle_track):
+    def handle_playlist_tracks(self, playlist_id, handle_track):
         handle_all_from_pagination(handle_track, lambda offset, limit: self.sp_pl_modify.playlist_items(playlist_id, limit=limit, offset=offset), MAX_READ_ITEMS)
 
-    def handle_liked_tracks(handle_track):
+    def handle_liked_tracks(self, handle_track):
         handle_all_from_pagination(handle_track, lambda offset, limit: self.sp_lib.current_user_saved_tracks(limit=limit, offset=offset), MAX_READ_ITEMS)
-
-    # Helper methods
-    # ============================
-    def self.get_artists_string(artists):
-        # TODO: Do this functionally better with foldr or smth
-        s = ""
-        first = True
-        for artist in artists:
-            if not first:
-                s += ", {}".format(artist['name'])
-            else:
-                s += artist['name']
-                first = False
-        return s
 
 if __name__ == "__main__":
     # Run a test suite? Might be fun
-    continue
+    pass
