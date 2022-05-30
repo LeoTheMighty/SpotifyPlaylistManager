@@ -20,10 +20,11 @@ ARCHIVE_INDICATOR = ' (archived)'
 IGNORE_CHARACTER = '*'
 
 # TODO
+RECOMMENDED_SONGS_PLAYLIST = 'My Recommended Songs'
 RECOMMENDED_ARCHIVE_PLAYLIST_NAME = 'My Archived Recommended Songs'
 
 PREFIX_UPDATE_MAP = {
-    "we": ['My Recommended Songs'],
+    "we": [RECOMMENDED_SONGS_PLAYLIST],
     "": [LIKED_NAME],
     LIKED_ID: ["Cursed combination"],
 }
@@ -36,6 +37,8 @@ logger = Log(True)
 
 def matches_prefix(name, prefix):
     """Determines whether the name matches the given prefix"""
+    if prefix is None or name is None:
+        return prefix is None and name is None
 
     return name.replace(IGNORE_CHARACTER, '').lower().startswith(prefix)
 
@@ -128,7 +131,7 @@ def get_all_playlist_tracks(playlist_names):
     logger.debug("")
     playlist_tracks = {}
     for playlist_id, playlist_name in playlist_names.items():
-        tracks = get_playlist_tracks(playlist_id)
+        tracks = sp.get_playlist_tracks(playlist_id)
         logger.debug("\"{}\" has {} tracks".format(playlist_name, len(tracks)))
         playlist_tracks[playlist_id] = tracks
 
@@ -206,8 +209,8 @@ def print_accomplish_plan():
     print("1. It will use the SUPERLIST_INDICATOR = \"{}\" to figure out what playlists are sub-playlists of others.".format(SUPERLIST_INDICATOR))
     print("      For instance in your case: \"My Cool Playlist\" is a sublist of \"My Cool Playlist{}\"".format(SUPERLIST_INDICATOR))
     print("2. It will add all of your playlists over to your Liked Songs automatically.")
-    print("3. It will add every Liked Song to these playlists: {}".format(UPDATE_WITH_LIKED))
-    print("4. It will add every song from the playlists with these prefixes: {} to your general Recommended Playlist named \"{}\"".format(ADD_TO_RECOMMENDED_PREFIXES, RECOMMENDED_PLAYLIST_NAME))
+    print("3. It will add every Liked Song to these playlists: {}".format(PREFIX_UPDATE_MAP[LIKED_ID]))
+    print("4. It will add every song from the playlists with these prefixes: \"we\" to your general Recommended Playlist named \"{}\"".format(RECOMMENDED_SONGS_PLAYLIST))
     # TODO
     # print("5. It will maintain an Archived Recommended playlist named \"{}\" where the items in this list are removed from the Recommended playlist".format(RECOMMENDED_ARCHIVE_PLAYLIST_NAME))
     print()
@@ -231,7 +234,7 @@ def print_detailed_track_plan(playlists_to_update, playlist_names):
     print()
     for playlist, tracks in playlists_to_update.items():
         print("\"{}\" (to add {} tracks):".format(playlist_names[playlist], len(tracks)))
-        for i, track_name in enumerate(get_track_names(tracks)):
+        for i, track_name in enumerate(sp.get_track_names(list(tracks))):
             print("    {}. {}".format(i, track_name))
         print()
 

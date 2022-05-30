@@ -1,4 +1,5 @@
 import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 from secrets import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI
 
 # Personal Designation for Liked Songs
@@ -17,10 +18,13 @@ def init_client(scope):
     """Instantiate a Spotify client with the given scope"""
 
     return spotipy.Spotify(
-            client_id=CLIENT_ID,
-            client_secret=CLIENT_SECRET,
-            redirect_uri=REDIRECT_URI,
-            scope=scope)
+        auth_manager = SpotifyOAuth(
+            client_id = CLIENT_ID,
+            client_secret = CLIENT_SECRET,
+            redirect_uri = REDIRECT_URI,
+            scope = scope
+        )
+    )
 
 def handle_all_from_pagination(handle, fetch, limit):
     """Process every item from a paginated API call.
@@ -105,14 +109,22 @@ class SpotifyHelper:
         if playlist_id is LIKED_ID:
             batch_handle(track_ids, lambda batch: self.sp_lib_modify.current_user_saved_tracks_add(batch), MAX_ADD_LIBRARY_ITEMS)
         else:
-            batch_handle(track_ids, lambda batch: self.sp_pl_modify(playlist_id, batch), MAX_ADD_ITEMS)
+            batch_handle(track_ids, lambda batch: self.sp_pl_modify.playlist_add_items(playlist_id, batch), MAX_ADD_ITEMS)
 
     def get_track_names(self, track_ids):
+        """
+        Gets the list of pretty track names from the list of track IDs passed in.
+
+        Args:
+            track_ids (list): The list of track IDs to get the track names for
+
+        Returns (list): The list of pretty strings of track name + artist name.
+        """
         track_names = []
 
         def handle_batch(batch):
-            for track in batch['tracks']:
-                track_names.append("\"{}\" by {}".format(track['name'], SpotifyHelper.get_artists_string(track['artists'])))
+            for track in self.sp_lib.tracks(batch)['tracks']:
+                track_names.append("\"{}\" by {}".format(track['name'], get_artists_string(track['artists'])))
 
         batch_handle(track_ids, handle_batch, MAX_READ_ITEMS)
 
